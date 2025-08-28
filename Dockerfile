@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y \
 # Habilitar módulos de Apache usados por Proxmoxrobo (.htaccess, headers)
 RUN a2enmod rewrite headers
 
+RUN apt-get update && apt-get install -y mariadb-server default-mysql-client \
+  && service mysql start \
+  && mysql -e "CREATE DATABASE proxmoxrobo; CREATE USER 'user'@'localhost' IDENTIFIED BY 'password'; GRANT ALL ON proxmoxrobo.* TO 'user'@'localhost';"
+
 # Instalar extensiones PHP necesarias (incluye PDO MySQL)
 RUN docker-php-ext-configure gd --with-jpeg=/usr \
   && docker-php-ext-install -j$(nproc) \

@@ -1,38 +1,23 @@
 FROM php:8.1-apache
 
-# Paquetes de sistema para extensiones comunes
-RUN apt-get update && apt-get install -y \
-    libzip-dev libpng-dev libjpeg-dev libonig-dev libicu-dev \
-  && rm -rf /var/lib/apt/lists/*
+# Extensiones del sistema que ayudan a compilar/extensiones PHP
+RUN apt-get update && apt-get install -y libzip-dev libpng-dev libjpeg-dev libicu-dev && rm -rf /var/lib/apt/lists/*
 
-# Habilitar módulos de Apache usados por Proxmoxrobo (.htaccess, headers)
+# Apache
 RUN a2enmod rewrite headers
-
-RUN apt-get update && apt-get install -y mariadb-server default-mysql-client \
-  && service mysql start \
-  && mysql -e "CREATE DATABASE proxmoxrobo; CREATE USER 'user'@'localhost' IDENTIFIED BY 'password'; GRANT ALL ON proxmoxrobo.* TO 'user'@'localhost';"
-
-# Instalar extensiones PHP necesarias (incluye PDO MySQL)
-RUN docker-php-ext-configure gd --with-jpeg=/usr \
-  && docker-php-ext-install -j$(nproc) \
-     pdo_mysql mysqli gd zip mbstring intl
-
-# Quitar el warning AH00558 de Apache
 RUN echo "ServerName service.triexpertservice.com" > /etc/apache2/conf-available/servername.conf \
- && a2enconf servername
-
-# Asegurar DirectoryIndex y permitir .htaccess en el webroot
-RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/conf-available/dirindex.conf \
+ && a2enconf servername \
+ && echo "DirectoryIndex index.php index.html" > /etc/apache2/conf-available/dirindex.conf \
  && a2enconf dirindex \
- && printf '%s\n' \
-    '<Directory /var/www/html>' \
-    '  AllowOverride All' \
-    '  Require all granted' \
-    '</Directory>' \
-   > /etc/apache2/conf-available/override.conf \
+ && printf '%s\n<Directory /var/www/html>\n  AllowOverride All\n  Require all granted\n</Directory>\n' > /etc/apache2/conf-available/override.conf \
  && a2enconf override
 
-# Copia del código al webroot
+# PHP: habilita PDO MySQL y demás
+RUN docker-php-ext-configure gd --with-jpeg=/usr \
+ && docker-php-ext-install -j$(nproc) pdo_mysql mysqli gd zip intl mbstring
+# (Alternativa más sencilla para extensiones: docker-php-extension-installer). :contentReference[oaicite:2]{index=2}
+
+# Copia del código
 COPY . /var/www/html
 RUN chown -R www-data:www-data /var/www/html
 
